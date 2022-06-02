@@ -65,7 +65,7 @@ app.plot_ppp()
 ```
 ![ppp](data/ppp.png)
 
-Finally, check the timeseries plot.
+Finally, check the streamflow timeseries plot.
 
 ![ppp](data/ts.png)
 ## References
