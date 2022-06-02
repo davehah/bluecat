@@ -246,39 +246,20 @@ class KMomentsEstimation(UncertaintyEstimation):
     @staticmethod
     def PBF_obj(x,ptot,kp,kptail):
         """Objective function of the PBF distribution for fitting."""
-        kp = np.array(kp)
-        kptail = np.array(kptail)
         lambda1k=((1+(beta(1/x[1]/x[0]-1/x[1],1/x[1])/x[1])**x[1])
             **(1/x[1]/x[0]))
-        b = ((1-(1+(beta(1/x[1]/x[0]-1/x[1],1/x[1])/x[1])**x[1])
+        lambda1t=1/((1-(1+(beta(1/x[1]/x[0]-1/x[1],1/x[1])/x[1])**x[1])
             **(-1/x[1]/x[0])))
-        if b <= 0:
-            return np.nan
-        lambda1t=1/b
         lambdainfk=math.gamma(1-x[0])**(1/x[0])
         lambdainft=math.gamma(1+1/x[1])**(-x[1])
         Tfromkk=lambdainfk*ptot+lambda1k-lambdainfk
         Tfromkt=lambdainft*ptot+lambda1t-lambdainft
-        test_list = kp-x[3]
-        test_list2 = (1+x[0]*x[1]*((kp-x[3])/x[2])**x[1])**(-1/x[0]/x[1])
-        if any(i <= 0 for i in test_list):
-            return np.nan
-        elif any(j <= 0.00001 for j in test_list2):
-            return np.nan
-        else:
-            Tfromdk=1/test_list2
-        
-        test_list3 = kptail-x[3]
-        if  any(i <= 0 for i in test_list3):
-            return np.nan
-        else:
-            Tfromdt=(1/(1-(1+x[0]*x[1]*((kptail-x[3])/x[2])**x[1])
-                **(-1/x[0]/x[1])))
+        Tfromdk=1/(1+x[0]*x[1]*((kp-x[3])/x[2])**x[1])**(-1/x[0]/x[1])
+        Tfromdt=(1/(1-(1+x[0]*x[1]*((kptail-x[3])/x[2])**x[1])
+            **(-1/x[0]/x[1])))
         lsquares=(sum(np.log(Tfromkk/Tfromdk)**2)
             + sum(np.log(Tfromkt/Tfromdt)**2))
         return lsquares
-    
-    
 
     @staticmethod
     def k_moments_estimation(medpred, m, nstep):
@@ -312,17 +293,16 @@ class KMomentsEstimation(UncertaintyEstimation):
         return ptot, kp, kptail
     
     @classmethod
-    def fit_PBF(cls, paramd, lowparamd, upparamd, ptot, kp, kptail):
+    def fit_PBF(cls, lowparamd, upparamd, ptot, kp, kptail):
         """Fitting PBF distribution, returns parameters and 
         optimization result.
         """
-        init_val = paramd
         bounds = tuple(zip(lowparamd, upparamd))
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=RuntimeWarning)
-            min_result = so.minimize(
-                cls.PBF_obj, init_val, args= (ptot, kp, kptail), 
-                method = "SLSQP", bounds=bounds, options={"maxiter":200})
+            min_result = so.differential_evolution(cls.PBF_obj, bounds=bounds,
+                args=(np.array(ptot), np.array(kp), np.array(kptail)),
+                maxiter=200)
         x = min_result.x
         return x, min_result
 
@@ -430,7 +410,7 @@ class KMomentsEstimation(UncertaintyEstimation):
         ptot, kp, kptail = self.k_moments_estimation(medpred, m, nstep)
 
         # Fitting PBF distribution, x is the calibrated parameters
-        x, opt = self.fit_PBF(paramd, lowparamd, upparamd, ptot, kp, kptail)
+        x, opt = self.fit_PBF(lowparamd, upparamd, ptot, kp, kptail)
 
         # Computing ph and pl using lambda values with the fitted distribution
         # parameters
