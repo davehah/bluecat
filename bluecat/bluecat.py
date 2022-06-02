@@ -10,6 +10,16 @@ import warnings
 
 @dataclass(slots=True)
 class UncertaintyOutput:
+    """Dataclass used for storing output of uncertainty estimation.
+    
+    Args:
+        medpred (ndarray): Mean of stochastic prediction.
+        suppred (ndarray): Upper bound of stochastic prediction.
+        infpred (ndarray): Lower bound of stochastic prediction.
+        zeta (list): If prob_plot=True returns positions for probability plots, 
+            otherwise empty numpy array.
+        opt: Results of the PBF distribution fitting.
+    """
     medpred: np.ndarray
     suppred: np.ndarray
     infpred: np.ndarray
@@ -19,6 +29,19 @@ class UncertaintyOutput:
 
 @dataclass(slots=True)
 class NeighboursOutput:
+    """Dataclass used for storing output of num_m_neighbours.
+    
+    Args:
+        aux: Order of simulated data.
+        sortsim: Simulated data in ascending order.
+        sortcalibsim: Simulated calibration data in ascending order.
+        qossc: Observed calibration data in ascending order of simulated 
+            calibration data.
+        vectmin, vectmin1: vector of minimal quantities based on the 
+            location with respect to calibration set.
+        nstep: Length of simulation set.
+        nstep1: Length of simulation and calibration set.
+    """
     aux: np.ndarray
     sortsim: np.ndarray
     sortcalibsim: np.ndarray
@@ -28,6 +51,29 @@ class NeighboursOutput:
     nstep: int
     nstep1: int
 
+@dataclass(slots=True)
+class BluecatData:
+    """Dataclass used for Bluecat input data and configuration parameters 
+    
+    Args:
+        qsim (ndarray): Array of simulation of the test set.
+        qcalib (ndarray): Array of simulation of the calibration set.
+        qcalibobs (ndarray): Array of observed data of the calibration set.
+        m (int): Number of neighbours.
+        siglev (float): Significance level 0 < x < 1.
+        estmethod: UncertaintyEstimation subclass 
+            (EmpiricalEstimation() or KMomentsEstimation())
+        qobs (ndarray, optional): Observation data of the test set.
+        prob_plot (bool, optional): If True, generates positions for 
+            probability plot (qobs required).
+    """
+    qsim: np.ndarray
+    qcalib: np.ndarray
+    qcalibobs: np.ndarray
+    m: int
+    siglev: float
+    qobs: np.ndarray | None = None
+    prob_plot: bool = False
 
 class EstimationTools:
     """Tools required for Bluecat.
@@ -147,39 +193,24 @@ class SimMetrics:
 
 class UncertaintyEstimation(ABC):
     @abstractmethod
-    def uncertainty_estimation(self, qsim, qcalib, 
-        qcalibobs, m, siglev, 
-        qobs = np.nan, prob_plot = False):
+    def uncertainty_estimation(self, bd):
         pass
 
 class EmpiricalEstimation(UncertaintyEstimation):
     """Uncertainty estimation using empirical estimation."""
 
-    def uncertainty_estimation(self, qsim, qcalib, 
-        qcalibobs, m, siglev, 
-        qobs = np.nan, prob_plot = False):
+    def uncertainty_estimation(self, bd):
         """Uncertainty estimation using empirical estimation.
         
         Args:
-            qsim: Array of simulation of the test set.
-            qcalib: Array of simulation of the calibration set.
-            qcalibobs: Array of observed data of the calibration set.
-            m: Number of neighbours.
-            siglev: Significance level.
-            qobs (optional): Observation data of the test set.
-            prob_plot (optional): If True, generates positions for 
-                probability plot.
+            bd: BluecatData dataclass.
         
         Returns:
-            medpred: Mean of stochastic prediction.
-            suppred: Upper bound of stochastic prediction.
-            infpred: Lower bound of stochastic prediction.
-            zeta: If prob_plot=True returns positions for probability plots, 
-                otherwise empty numpy array.
-            opt: Results of the PBF distribution fitting.
+            UncertaintyOutput dataclass.
         """
         
-        no = EstimationTools.num_of_m_neighbours(qsim, qcalib, qcalibobs, m)
+        no = EstimationTools.num_of_m_neighbours(bd.qsim, bd.qcalib, 
+            bd.qcalibobs, bd.m)
         aux = no.aux
         sortsim = no.sortsim
         sortcalibsim = no.sortcalibsim
@@ -216,8 +247,8 @@ class EmpiricalEstimation(UncertaintyEstimation):
             count = aux1-aux2
 
             # index of the quantiles in the sample
-            eindexh = np.ceil(count*(1-siglev/2)).astype('int') - 1
-            eindexl = np.ceil(count*siglev/2).astype('int') - 1
+            eindexh = np.ceil(count*(1-bd.siglev/2)).astype('int') - 1
+            eindexl = np.ceil(count*bd.siglev/2).astype('int') - 1
 
             # confidence bands
             suppred[i] = np.sort(qossc[aux2:aux1])[eindexh]
@@ -228,8 +259,8 @@ class EmpiricalEstimation(UncertaintyEstimation):
                 infpred[i] = np.nan
             
             # probability plot if requested
-            if prob_plot == True and count >= 3:
-                zeta[i] = EstimationTools().weibull_plot_i(qobs, qossc, 
+            if bd.prob_plot == True and count >= 3:
+                zeta[i] = EstimationTools().weibull_plot_i(bd.qobs, qossc, 
                     aux, aux2, 
                     aux1, i, 
                     count)
@@ -352,28 +383,14 @@ class KMomentsEstimation(UncertaintyEstimation):
         return Fxarr1, Fxarr2
 
 
-    def uncertainty_estimation(self, qsim, qcalib, 
-        qcalibobs, m, siglev, 
-        qobs = np.nan, prob_plot = False):
+    def uncertainty_estimation(self, bd):
         """Uncertainty estimation using K-moments on PBF distribution
         
         Args:
-            qsim: Array of simulation of the test set.
-            qcalib: Array of simulation of the calibration set.
-            qcalibobs: Array of observed data of the calibration set.
-            m: Number of neighbours.
-            siglev: Significance level.
-            qobs (optional): Observation data of the test set.
-            prob_plot (optional): If True, generates positions for 
-                probability plot.
+            bd: BluecatData dataclass.
         
         Returns:
-            medpred: Mean of stochastic prediction.
-            suppred: Upper bound of stochastic prediction.
-            infpred: Lower bound of stochastic prediction.
-            zeta: If prob_plot=True returns positions for probability plots, 
-                otherwise empty numpy array.
-            opt: Results of the PBF distribution fitting.
+            UncertaintyOutput dataclass.
         """
         
         # initialize parameters for distribution fitting
@@ -381,7 +398,8 @@ class KMomentsEstimation(UncertaintyEstimation):
         lowparamd = [0.001,0.01,0.001,0]
         upparamd = [0.999,5,20,None]
 
-        no = EstimationTools.num_of_m_neighbours(qsim, qcalib, qcalibobs, m)
+        no = EstimationTools.num_of_m_neighbours(bd.qsim, bd.qcalib,
+            bd.qcalibobs, bd.m)
         aux = no.aux
         sortsim = no.sortsim
         sortcalibsim = no.sortcalibsim
@@ -392,8 +410,7 @@ class KMomentsEstimation(UncertaintyEstimation):
         nstep1 = no.nstep1 
 
         # Estimate mean stochastic prediction and initialize confidence bands
-        uo = EmpiricalEstimation().uncertainty_estimation(qsim, qcalib, 
-            qcalibobs, m, siglev)
+        uo = EmpiricalEstimation().uncertainty_estimation(bd)
         medpred = uo.medpred
         infpred = np.empty([nstep,], dtype=np.float64)
         suppred = np.empty([nstep,], dtype=np.float64)
@@ -407,14 +424,14 @@ class KMomentsEstimation(UncertaintyEstimation):
         #paramd = [sum(value)/2 for value in zip(upparamd,lowparamd)]
   
         # K-moments estimation
-        ptot, kp, kptail = self.k_moments_estimation(medpred, m, nstep)
+        ptot, kp, kptail = self.k_moments_estimation(medpred, bd.m, nstep)
 
         # Fitting PBF distribution, x is the calibrated parameters
         x, opt = self.fit_PBF(lowparamd, upparamd, ptot, kp, kptail)
 
         # Computing ph and pl using lambda values with the fitted distribution
         # parameters
-        ph, pl = self.estimate_order_p(x, siglev)
+        ph, pl = self.estimate_order_p(x, bd.siglev)
 
         # Computing confidence bands
         for i in range(nstep):
@@ -441,8 +458,8 @@ class KMomentsEstimation(UncertaintyEstimation):
                 infpred[i] = None
             
             # probability plot if requested
-            if prob_plot is True and count >= 3:
-                zeta[i] = EstimationTools().weibull_plot_i(qobs, qossc, aux, 
+            if bd.prob_plot is True and count >= 3:
+                zeta[i] = EstimationTools().weibull_plot_i(bd.qobs, qossc, aux, 
                     aux2, aux1, i, count)
 
         suppred = suppred[np.argsort(aux)]
@@ -470,7 +487,7 @@ class NoObservedDataError(Exception):
         super().__init__(self.message)
 
 class Bluecat:
-    """Brisk local uncertainty estimator for generic simulations 
+    """Brisk local uncertainty estimator for deterministic simulations 
     and predictions (Bluecat).
     
     Bluecat estimates the mean, upper, and lower bound of simulations and 
@@ -478,15 +495,15 @@ class Bluecat:
     neighbours, and approach (empricial, K-moments).
 
     Attributes:
-        qsim: Array of simulation of the test set.
-        qcalib: Array of simulation of the calibration set.
-        qcalibobs: Array of observed data of the calibration set.
-        m: Number of neighbours.
-        siglev: Significance level 0 < x < 1.
+        qsim (ndarray): Array of simulation of the test set.
+        qcalib (ndarray): Array of simulation of the calibration set.
+        qcalibobs (ndarray): Array of observed data of the calibration set.
+        m (int): Number of neighbours.
+        siglev (float): Significance level 0 < x < 1.
         estmethod: UncertaintyEstimation subclass 
             (EmpiricalEstimation() or KMomentsEstimation())
-        qobs (optional): Observation data of the test set.
-        prob_plot (optional): If True, generates positions for 
+        qobs (ndarray, optional): Observation data of the test set.
+        prob_plot (bool, optional): If True, generates positions for 
             probability plot (qobs required).
     
     """
@@ -512,6 +529,7 @@ class Bluecat:
         self.estmethod = estmethod
         self.qobs = qobs
         self.prob_plot = prob_plot
+
     
     @staticmethod
     def ppoints(n):
@@ -549,11 +567,11 @@ class Bluecat:
     def sim(self):
         """Runs specified uncertainty estimation"""
         
-        uo = self.estmethod.uncertainty_estimation(
-            self.qsim, self.qcalib, 
-            self.qcalibobs, self.m, 
-            self.siglev, self.qobs, 
-            self.prob_plot)
+        # initialize dataclass
+        bd = BluecatData(self.qsim, self.qcalib, self.qcalibobs, 
+            self.m, self.siglev, self.qobs, self.prob_plot)
+        
+        uo = self.estmethod.uncertainty_estimation(bd)
         
         # Unpack output as instances variables
         self.medpred = uo.medpred
