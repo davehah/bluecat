@@ -1,5 +1,6 @@
 # bluecat
 ![builds](https://github.com/davehah/bluecat/actions/workflows/tests.yml/badge.svg)
+![py](https://img.shields.io/pypi/pyversions/bluecat)
 
 BLUECAT: Brisk local uncertainty estimator for deterministic simulations and predictions [[1]](#1).
 This is an adaptation of [hymodbluecat](https://github.com/albertomontanari/hymodbluecat), 
