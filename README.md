@@ -7,12 +7,16 @@ where BLUECAT is refactored to Python code. BLUECAT converts deterministic to st
 
 
 ## Installation
-The following libraries are required to install bluecat:
-- numpy
-- scipy
-- matplotlib
-
-Mathematical details for bluecat is provided in the reference below. Here both empirical and K-Moments estimation of confidence limits are supported. 
+You can install bluecat using pip:
+```
+pip install bluecat
+```
+Otherwise, clone this repo and install manually:
+```
+git clone https://github.com/davehah/bluecat.git
+cd bluecat
+pip install .
+```
 
 ## Example: Empirical and K-Moments estimation of confidence limits
 We focus on estimating the uncertainty of a single deterministic simulation of streamflow. Following the traditional split-sample testing, the calibration data is used to estimate the uncertainty of the test data. First, import the package:
