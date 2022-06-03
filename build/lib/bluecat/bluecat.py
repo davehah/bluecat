@@ -16,13 +16,14 @@ class UncertaintyOutput:
         medpred (ndarray): Mean of stochastic prediction.
         suppred (ndarray): Upper bound of stochastic prediction.
         infpred (ndarray): Lower bound of stochastic prediction.
-        zeta (ndarray): Position points used for probability plots.
+        zeta (list): If prob_plot=True returns positions for probability plots, 
+            otherwise empty numpy array.
         opt: Results of the PBF distribution fitting.
     """
     medpred: np.ndarray
     suppred: np.ndarray
     infpred: np.ndarray
-    zeta: np.ndarray
+    zeta: list[float]
     opt: None | so._optimize.OptimizeResult
 
 
@@ -230,7 +231,7 @@ class EmpiricalEstimation(UncertaintyEstimation):
         # computing the mean and confidence intervals
         for i in range(nstep):
 
-            # return the index of observed data to fit
+            # return the range observed data to fit
             aux2, aux1 = EstimationTools.m_neighbours(sortcalibsim, 
                 sortsim[i], 
                 vectmin, 
@@ -383,7 +384,7 @@ class KMomentsEstimation(UncertaintyEstimation):
 
 
     def uncertainty_estimation(self, bd):
-        """Uncertainty estimation using K-moments using PBF distribution
+        """Uncertainty estimation using K-moments on PBF distribution
         
         Args:
             bd: BluecatData dataclass.
@@ -472,12 +473,6 @@ class NotNumpyError(Exception):
         self.message = message
         super().__init__(self.message)
 
-class NotVectorError(Exception):
-    def __init__(self, array, message = "Input is not a vector"):
-        self.array = array
-        self.message = message
-        super().__init__(self.message)
-
 class SigLevelNotInRangeError(Exception):
     def __init__(self, siglev, message = "Significance level not in (0, 1)" \
             "range"):
@@ -516,57 +511,26 @@ class Bluecat:
     def __init__(self, qsim, qcalib, 
         qcalibobs, m, siglev, estmethod, 
         qobs = None, prob_plot = False):
-        
-        if not 0 < siglev < 1:
+        if not type(qsim).__module__ == np.__name__:
+            raise NotNumpyError(qsim)
+        elif not type(qcalib).__module__ == np.__name__:
+            raise NotNumpyError(qcalib)
+        elif not type(qcalibobs).__module__ == np.__name__:
+            raise NotNumpyError(qcalibobs)
+        elif not 0 < siglev < 1:
             raise SigLevelNotInRangeError(siglev)
         elif qobs is None and prob_plot == True:
             raise NoObservedDataError()
-        self.qsim = self._pre_array(qsim)
-        self.qcalib = self._pre_array(qcalib)
-        self.qcalibobs = self._pre_array(qcalibobs)
+        self.qsim = qsim
+        self.qcalib = qcalib
+        self.qcalibobs = qcalibobs
         self.m = m
         self.siglev = siglev
         self.estmethod = estmethod
-        self.qobs = self._pre_array(qobs, optional=True)
+        self.qobs = qobs
         self.prob_plot = prob_plot
+
     
-    @staticmethod
-    def _pre_array(array, optional=False):
-        """Checks if input array is a vector, else raise error.
-        Also, squeezes if array is (n,1) or (1,n) to (n,).
-
-        Args:
-            array (ndarray | None): Input array to check.
-            optional (bool): Asks if the array was optional to bluecat.
-
-        Returns: 
-            An (n,) array or None (if array is not supplied and optional).
-
-        Raises:
-            NotNumpyError: If input array is not a numpy array.
-            NotVectorError: If input array is not a vector.
-
-        """
-        if optional is True and array is None:
-            # check if the optional array is none
-            return array
-        elif not type(array).__module__ == np.__name__:
-            # check if array is numpy, if not raise error
-            raise NotNumpyError(array)
-        elif array.ndim == 1:
-            # check if array is vector
-            return array
-        elif array.ndim == 2:
-            # if array is (n,1) or (1,n) then return the squeezed array, else
-            # raise error
-            if array.shape[0] == 1 or array.shape[1] == 1:
-                return np.squeeze(array)
-            else:
-                raise NotVectorError(array)
-        else:
-            # raise error if none of the above dont match
-            raise NotVectorError(array)
-          
     @staticmethod
     def ppoints(n):
         """Generates probability points. 
@@ -607,7 +571,6 @@ class Bluecat:
         bd = BluecatData(self.qsim, self.qcalib, self.qcalibobs, 
             self.m, self.siglev, self.qobs, self.prob_plot)
         
-        # run uncertainty estimation
         uo = self.estmethod.uncertainty_estimation(bd)
         
         # Unpack output as instances variables

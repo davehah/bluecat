@@ -51,6 +51,14 @@ class TestBluecat(unittest.TestCase):
         with self.assertRaises(bc.NotNumpyError):
             bc.Bluecat(qsim, qcalib, qcalibobs.tolist(), m, siglev, bc.EmpiricalEstimation())
     
+    def test_not_vector_error(self):
+        with self.assertRaises(bc.NotVectorError):
+            bc.Bluecat(np.expand_dims(qsim, axis=(0,1)), qcalib, qcalibobs, m, siglev, bc.EmpiricalEstimation())
+    
+    def test_vector_extra_dims(self):
+        app = bc.Bluecat(np.expand_dims(qsim,axis=0), qcalib, qcalibobs, m, siglev, bc.EmpiricalEstimation())
+        np.testing.assert_allclose(qsim, app.qsim)
+    
     def test_sig_level_not_in_range(self):
         with self.assertRaises(bc.SigLevelNotInRangeError):
             bc.Bluecat(qsim, qcalib, qcalibobs, m, 1.2, bc.EmpiricalEstimation())
