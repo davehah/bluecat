@@ -16,13 +16,14 @@ class UncertaintyOutput:
         medpred (ndarray): Mean of stochastic prediction.
         suppred (ndarray): Upper bound of stochastic prediction.
         infpred (ndarray): Lower bound of stochastic prediction.
-        zeta (ndarray): Position points used for probability plots.
+        zeta (list): If prob_plot=True returns positions for probability plots, 
+            otherwise empty numpy array.
         opt: Results of the PBF distribution fitting.
     """
     medpred: np.ndarray
     suppred: np.ndarray
     infpred: np.ndarray
-    zeta: np.ndarray
+    zeta: list[float]
     opt: None | so._optimize.OptimizeResult
 
 
@@ -230,7 +231,7 @@ class EmpiricalEstimation(UncertaintyEstimation):
         # computing the mean and confidence intervals
         for i in range(nstep):
 
-            # return the index of observed data to fit
+            # return the range observed data to fit
             aux2, aux1 = EstimationTools.m_neighbours(sortcalibsim, 
                 sortsim[i], 
                 vectmin, 
@@ -383,7 +384,7 @@ class KMomentsEstimation(UncertaintyEstimation):
 
 
     def uncertainty_estimation(self, bd):
-        """Uncertainty estimation using K-moments using PBF distribution
+        """Uncertainty estimation using K-moments on PBF distribution
         
         Args:
             bd: BluecatData dataclass.
@@ -607,7 +608,6 @@ class Bluecat:
         bd = BluecatData(self.qsim, self.qcalib, self.qcalibobs, 
             self.m, self.siglev, self.qobs, self.prob_plot)
         
-        # run uncertainty estimation
         uo = self.estmethod.uncertainty_estimation(bd)
         
         # Unpack output as instances variables
