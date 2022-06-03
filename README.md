@@ -3,8 +3,10 @@
 ![py](https://img.shields.io/pypi/pyversions/bluecat)
 
 BLUECAT: Brisk local uncertainty estimator for deterministic simulations and predictions [[1]](#1).
-This is an adaptation of [hymodbluecat](https://github.com/albertomontanari/hymodbluecat), 
-where BLUECAT is refactored to Python code. BLUECAT converts deterministic to stochastic models for hydrological simulations and predictions. 
+BLUECAT converts deterministic to stochastic models for hydrological simulations and predictions. 
+This is an adaptation of [hymodbluecat](https://github.com/albertomontanari/hymodbluecat) from R, 
+where BLUECAT is refactored to Python code. As many deep-learning models are developed within Python, 
+this package allows users to use BLUECAT without having to use R.
 
 
 ## Installation
